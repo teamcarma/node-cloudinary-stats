@@ -1,0 +1,21 @@
+{
+  "name": "cloudinary-stats",
+  "version": "1.0.0",
+  "description": "Get your cloudinary status ( usage, ... )",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "arg-parser": "^1.1.1",
+    "cloudinary": "^1.2.4",
+    "lodash": "^3.10.1",
+    "q": "^1.4.1",
+    "request": "^2.62.0"
+  },
+  "bin": {
+    "cloudinary-stats": "bin/cloudinary-stats.js"
+  }
+}
