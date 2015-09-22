@@ -14,18 +14,36 @@ var _           = require("lodash"),
  * @return {Promise}
  *
  */
-var getResourcesByTag = function(tag, options){
+var getResources = function(tag, options){
 
     var dfd = Q.defer();
 
+    var getter = tag ? cloudinary.api.resources_by_tag : cloudinary.api.resources,
+        args = tag ? [tag] : [];
+
     try {
-        cloudinary.api.resources_by_tag(tag, function(list){
+
+        args = args.concat(function(list){
+
+            if(list.error){
+                dfd.reject(list.error);
+                return;
+            }
+
             dfd.resolve(list);
-        }, _.extend({
+
+        });
+
+        args = args.concat(_.extend({
             cloud_name: options.cloud_name,
             api_key: options.api_key,
-            api_secret: options.api_secret
+            api_secret: options.api_secret,
+            max_results: 100,
+            tags: true
         }, options));
+
+        getter.apply({}, args);
+
     }
     catch(e){
         dfd.reject(e);
@@ -47,36 +65,69 @@ var CloudinaryStats = function(cOptions){
 
     return {
 
-        /**
-         *
-         * Get disk usage.
-         *
-         * @param  {Object} options
-         * @return {Promise}
-         */
-        getDiskUsage: function(tag, options){
+        ls: function(tag, options){
 
-            var size = 0;
+            options.maxPages = options.maxPages || 999999;
+
+            var currentPage = 0;
 
             /// recursive call to resources
             var recursiveCalculateResourcesSize = function(size, next_cursor){
 
-                options = _.extend({}, options, { next_cursor: next_cursor }, cOptions);
+                var rOptions = _.extend({}, options, cOptions, { next_cursor: next_cursor });
 
-                return getResourcesByTag(tag, options).then(function(r){
+                return getResources(tag, rOptions).then(function(r){
 
                     r = _.extend({ resources: [] }, r);
+                    var pageSize = 0;
 
-                    var pageSize = _.reduce(r.resources, function(total, item) { return total + item.bytes; }, 0),
-                        total = pageSize + size;
+                    _.each(r.resources, function(resource){
 
-                     console.log(pageSize);
+                        if(!options.format){
+                            console.log(
+                            _.map(_.keys(resource), function(field){
+                                return field + ":" + resource[field];
+                            }).join("\t"));
+                        }
+                        else {
+                            console.log(
+                                _.map(options.format.split(","), function(field){
+                                    return resource[field];
+                                }).join("\t"));
+                        }
 
-                    if(!pageSize) {
-                        return total;
+                        pageSize += resource.bytes;
+
+                    });
+
+                    return _.extend(r, { pageSize: pageSize })
+
+                })
+                .then(function(r){
+
+                    size = r.pageSize + size;
+                    currentPage++;
+
+                    if(currentPage < options.maxPages && r.next_cursor){
+                        return recursiveCalculateResourcesSize(size, r.next_cursor);
                     }
 
-                    recursiveCalculateResourcesSize(total, r.next_cursor);
+                    /// if a format is specified ignore the totals
+                    if(options.format){
+                        return;
+                    }
+
+                    console.log("\n");
+                    console.log([
+                        "Pages",
+                        currentPage
+                    ].join("\t"));
+
+                    console.log([
+                        "Size",
+                        size
+                    ].join("\t"));
+
 
                 });
 
@@ -84,7 +135,33 @@ var CloudinaryStats = function(cOptions){
 
             return recursiveCalculateResourcesSize(0);
 
+        },
+
+        rm: function(id){
+
+            var dfd = Q.defer();
+
+            cloudinary.api.delete_resources(id, function(r){
+
+                console.log(r)
+                if(r.error){
+                    dfd.reject(r.error);
+                    return;
+                }
+
+                dfd.resolve(r);
+
+            }, {
+                cloud_name: cOptions.cloud_name,
+                api_key: cOptions.api_key,
+                api_secret: cOptions.api_secret,
+            });
+
+            return dfd.promise;
+
         }
+
+
 
     };
 
