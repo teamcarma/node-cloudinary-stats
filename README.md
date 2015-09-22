@@ -4,8 +4,7 @@
 
 [![Carma](https://raw.githubusercontent.com/teamcarma/node-python-runner-web/master/assets/banner.png)](https://carmacarpool.com/)
 
-Provides statistics and usage for your cloudinary resources.
-
+Provides command line utilities to manage your cloudinary resources.
 
 
 ```
